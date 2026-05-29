@@ -1,0 +1,9 @@
+repos:
+  - slug: 2dust/v2rayN
+    asset_regexp: '^(?!.*\.dmg$)(?!.*windows-arm)(?!.*(?:loong64|riscv)).*$'
+    max_rel_stored: 2
+    include_prerel: true
+
+  - slug: Flowseal/zapret-discord-youtube
+    max_rel_stored: 1
+    include_prerel: false
