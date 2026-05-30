@@ -4,7 +4,7 @@ import boto3
 from botocore.client import Config
 from mypy_boto3_s3 import S3Client
 
-from mirror.config import Settings
+from mirror.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -14,9 +14,10 @@ class S3Repository:
     def __init__(self) -> None:
         self.s3: S3Client = boto3.client(
             "s3",
-            aws_access_key_id=Settings.KEY_S3,
-            aws_secret_access_key=Settings.TOKEN_S3,
-            config=Config(signature_version=Settings.VERSION_S3),
+            endpoint_url=settings.S3_URL,
+            aws_access_key_id=settings.KEY_S3,
+            aws_secret_access_key=settings.TOKEN_S3,
+            config=Config(signature_version=settings.VERSION_S3),
         )
 
     def create_bucket(self, bucket_name: str) -> None:
@@ -49,3 +50,6 @@ class S3Repository:
     def delete_bucket(self, bucket_name: str) -> None:
         self.s3.delete_bucket(Bucket=bucket_name)
         logger.info("Bucket deleted.")
+
+
+s3_repo = S3Repository()
