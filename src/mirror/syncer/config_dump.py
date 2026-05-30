@@ -11,7 +11,3 @@ def config_dump(config_path: Path) -> list[dict[str, str]]:
 
     return config["repos"]
 
-
-if __name__ == "__main__":
-    config = settings.CONFIG_PATH
-    print(config_dump(config))

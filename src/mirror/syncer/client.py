@@ -25,7 +25,3 @@ def request_github_release(config: Path) -> dict[str, list[list[str]]]:
 
     return res_dict
 
-
-if __name__ == "__main__":
-    res = request_github_release(config)
-    print(res)
