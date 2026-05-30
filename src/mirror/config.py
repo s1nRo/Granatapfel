@@ -2,11 +2,20 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-filepath = Path(__file__).resolve().parent.parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
 
 class Settings(BaseSettings):
+    CONFIG_PATH: Path = PROJECT_ROOT / "config.yaml"
+
     GITHUB_TOKEN: str = "abc"
 
-    model_config = SettingsConfigDict(env_file = filepath / ".env", extra="ignore")
+    S3_URL: str = "http://192.168.1.100:9000"
+    KEY_S3: str = "rustfsadmin"
+    TOKEN_S3: str = "rustfssecret"
+    VERSION_S3: str = "s3v4"
+
+    model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env", extra="ignore")
+
 
 settings = Settings()
