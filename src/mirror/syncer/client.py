@@ -11,12 +11,12 @@ config = settings.CONFIG_PATH
 def request_github_release(config: Path) -> dict[str, list[list[str]]]:
     config_list = config_dump(config)
     repos = (item["slug"] for item in config_list)
+    res_dict = {}
     for url in repos:
         r = requests.get(
             f"https://api.github.com/repos/{url}/releases",
             headers={"Authorization": f"Bearer {settings.GITHUB_TOKEN}"},
         )
-        res_dict = {}
         release_meta = []
         for item in r.json():
             for asset in item["assets"]:
