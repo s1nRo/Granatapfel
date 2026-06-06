@@ -3,6 +3,7 @@ import logging
 import boto3
 from botocore.client import Config
 from mypy_boto3_s3 import S3Client
+from mypy_boto3_s3.type_defs import FileobjTypeDef
 
 from mirror.config import settings
 
@@ -19,6 +20,7 @@ class S3Repository:
             aws_secret_access_key=settings.TOKEN_S3,
             config=Config(signature_version=settings.VERSION_S3),
         )
+        self.s3.create_bucket(Bucket=settings.BUCKET_NAME)
 
     def create_bucket(self, bucket_name: str) -> None:
         try:
@@ -27,9 +29,9 @@ class S3Repository:
         except self.s3.exceptions.BucketAlreadyOwnedByYou:
             logger.info(f"Bucket {bucket_name} already exists.")
 
-    def upload_file(self, bucket_name: str, file: str, name_obj_s3: str) -> None:
-        self.s3.upload_file(file, bucket_name, name_obj_s3)
-        logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {name_obj_s3}")
+    def upload_file(self, data: FileobjTypeDef, bucket_name: str, keys: str) -> None:
+        self.s3.upload_fileobj(data, bucket_name, keys)
+        logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {keys}")
 
     def download_file(self, bucket_name: str, file: str, name_obj_s3: str) -> None:
         self.s3.download_file(bucket_name, name_obj_s3, file)
