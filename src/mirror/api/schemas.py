@@ -77,8 +77,8 @@ def home_page(iterable: Generator[str, None, None]) -> str:
     </tr>
     </thead>
     <tbody>
-    {% for url in iterable %}
-    <tr><td><a href="/{{url}}">{{url}}/</a></td></tr>
+    {% for href, name in iterable %}
+    <tr><td><a href="/{{href}}">{{name}}</a></td></tr>
     {% endfor %}
     </tbody>
     </table>

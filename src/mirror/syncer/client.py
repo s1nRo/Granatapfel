@@ -36,31 +36,37 @@ def stream_upload_s3(info_links: dict[str, list[list[str]]]) -> None:
         for link in item:
             key = link[0]
             url = link[1]
-
             impodence = s3_repo.s3.list_objects_v2(
                 Bucket=settings.BUCKET_NAME, Prefix=key, MaxKeys=1
             )
-            if key in str(impodence):
-                logger.debug("This object is in Bucket.")
-                continue
-            # print(f"url: {url}, key: {key}")
+            print(impodence)
+            if impodence["KeyCount"] > 0:
+                logger.info("This object is in Bucket.")
+                break
+            print(f"url: {url}, key: {key}")
             res = requests.get(url, stream=True)
             s3_repo.upload_file(res.raw, settings.BUCKET_NAME, key)
+            logger.info(
+                f"This file:{key} has uploaded to bucket:{settings.BUCKET_NAME}."
+            )
 
 
 if __name__ == "__main__":
-    # config = settings.CONFIG_PATH
-    # res = request_github_release(config)
-    # print(res)
+    config = settings.CONFIG_PATH
+    # print(request_github_release(config))
+    key = "zapret-discord-youtube-1.6.3.zip"
+    url = "https://github.com/Flowseal/zapret-discord-youtube/releases/download/1.6.3/zapret-discord-youtube-1.6.3.zip"
+    res = requests.get(url, stream=True)
+    s3_repo.upload_file(res.raw, settings.BUCKET_NAME, key)
     # stream_upload_s3(res)
-    url = "https://github.com/Flowseal/zapret-discord-youtube/releases/download/1.9.9a/zapret-discord-youtube-1.9.9a.zip"
-    key = "zapret-discord-youtube-1.9.9a.zip"
-    test = "zapret-discord-youtube-1.8.9a.zip"
+    # url = "https://github.com/Flowseal/zapret-discord-youtube/releases/download/1.9.9a/zapret-discord-youtube-1.9.9a.zip"
+    # key = "zapret-discord-youtube-1.9.9a.zip"
+    # test = "zapret-discord-youtube-1.8.9a.zip"
     # res = requests.get(url, stream=True)
     # s3_repo.upload_file(res.raw, settings.BUCKET_NAME, key)
 
-    impodence = s3_repo.s3.list_objects_v2(Bucket=settings.BUCKET_NAME, Prefix=key)
-    if test in str(impodence):
-        print("ok")
-    else:
-        print("fuck!")
+    # impodence = s3_repo.s3.list_objects_v2(Bucket=settings.BUCKET_NAME, Prefix=key)
+    # if test in str(impodence):
+    #     print("ok")
+    # else:
+    #     print("fuck!")

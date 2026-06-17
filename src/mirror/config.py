@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     TOKEN_S3: str = "rustfsadmin"
     VERSION_S3: str = "s3v4"
     BUCKET_NAME: str = "pomoyka"
+    LEVEL_DEBUG: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env", extra="ignore")
 

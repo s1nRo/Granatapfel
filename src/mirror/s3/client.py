@@ -1,3 +1,4 @@
+from io import BytesIO
 import logging
 
 import boto3
@@ -33,9 +34,14 @@ class S3Repository:
         self.s3.upload_fileobj(data, bucket_name, keys)
         logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {keys}")
 
-    def download_file(self, bucket_name: str, file: str, name_obj_s3: str) -> None:
-        self.s3.download_file(bucket_name, name_obj_s3, file)
-        logger.info(f"File downloaded. File_name: {name_obj_s3}")
+    def download_file(self, bucket_name: str, keys: str) -> None:
+        buff = BytesIO()
+
+        self.s3.download_fileobj(bucket_name, keys, buff)
+        buff.seek(0)
+
+        logger.info(f"File downloaded. File_name: {keys}")
+        return buff.read()
 
     def list_obj(self, bucket_name: str) -> list[tuple[str, int]]:
         response = self.s3.list_objects_v2(Bucket=bucket_name)
