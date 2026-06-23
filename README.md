@@ -1,93 +1,116 @@
-# granatapfel-mirror
+# Granatapfel
 
+Гранатовое дерево способно расти и плодоносить в крайне суровых, засушливых условиях, где другие растения погибают.
 
+`Granatapfel` — небольшой Python‑проект (FastAPI + GitHub API + S3), который собирает метаданные релизов GitHub (assets) по списку репозиториев и предназначен как основа для дальнейшей синхронизации/зеркалирования в S3‑хранилище.
 
-## Getting started
+## Возможности (текущий статус)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- Чтение списка репозиториев из `config.yaml`.
+- Запрос GitHub Releases API и сбор списка assets (имя + URL скачивания).
+- Базовый клиент S3 (boto3) для работы с бакетами/объектами.
+- Заготовка FastAPI приложения.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+> Проект находится на ранней стадии: часть модулей — пустые заглушки.
 
-## Add your files
+## Требования
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- Python **>= 3.11** (см. `pyproject.toml`).
+- Доступ к GitHub API (желательно с токеном).
+- S3‑совместимое хранилище (в документации упоминается **rustfs**).
 
+## Установка
+
+Проект оформлен как пакет для `uv`.
+
+```bash
+# установка uv (если ещё не установлен)
+# https://docs.astral.sh/uv/
+
+uv sync
 ```
-cd existing_repo
-git remote add origin https://git.hibanasama.ch/cns/granatapfel-mirror.git
-git branch -M master
-git push -uf origin master
+
+Либо любым другим способом, который читает `pyproject.toml` (зависимости перечислены в нём).
+
+## Конфигурация
+
+### config.yaml
+
+В корне проекта лежит `config.yaml`:
+
+```yaml
+repos:
+  - slug: owner/repo
+    asset_regexp: '...'
+    max_rel_stored: 2
+    include_prerel: true
 ```
 
-## Integrate with your tools
+Поля (по текущему состоянию кода):
 
-* [Set up project integrations](https://git.hibanasama.ch/cns/granatapfel-mirror/-/settings/integrations)
+- `slug` — репозиторий в формате `owner/name`.
+- Остальные поля (`asset_regexp`, `max_rel_stored`, `include_prerel`) уже есть в примере, но **пока не используются** в логике синхронизации.
 
-## Collaborate with your team
+### Переменные окружения (.env)
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Настройки читаются из `.env` (см. `src/mirror/config.py`). По умолчанию в коде есть значения-заглушки — **в проде так оставлять нельзя**.
 
-## Test and Deploy
+Минимально:
 
-Use the built-in continuous integration in GitLab.
+```dotenv
+GITHUB_TOKEN=ghp_***
+S3_URL=http://127.0.0.1:9000
+KEY_S3=...
+TOKEN_S3=...
+VERSION_S3=s3v4
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## Использование
 
-***
+### Получить список assets релизов GitHub
 
-# Editing this README
+Скрипт сейчас расположен в `src/mirror/syncer/client.py`:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+python -m mirror.syncer.client
+```
 
-## Suggestions for a good README
+Он прочитает `config.yaml` и выведет словарь вида:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```text
+{
+  "owner/repo": [["asset_name", "download_url"], ...],
+  ...
+}
+```
 
-## Name
-Choose a self-explaining name for your project.
+### S3 клиент
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Класс `S3Repository` находится в `src/mirror/s3/client.py` и содержит методы:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+- `create_bucket(bucket_name)`
+- `upload_file(bucket_name, file, name_obj_s3)`
+- `download_file(bucket_name, file, name_obj_s3)`
+- `list_obj(bucket_name)`
+- `delete_obj(bucket_name, name_obj_s3)`
+- `delete_bucket(bucket_name)`
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+> В текущем виде клиент создаётся без явного `endpoint_url` — для S3‑совместимых решений (MinIO/rustfs и т.п.) это, вероятно, потребуется добавить.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### API (FastAPI)
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Заготовка приложения лежит в `src/mirror/api/main.py`:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```bash
+uvicorn mirror.api.main:app --reload
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Пока это только пустой `FastAPI()` без роутов.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+## Документация
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+- `docs/stack.md` — кратко перечисляет зависимости стека (S3 + GitHub API).
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Лицензия
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Apache-2.0 (см. `LICENSE`).
