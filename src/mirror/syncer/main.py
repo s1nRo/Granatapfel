@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 def uplaoder_s3() -> None:
     config = settings.CONFIG_PATH
-    links = request_github_release(config)
-    stream_upload_s3(links)
+    links, ref_links = request_github_release(config)
+    stream_upload_s3(links, ref_links)
 
 
 schedule.every().day.at("12:00").do(uplaoder_s3)

@@ -10,7 +10,7 @@ class AppState:
     s3_client: S3Repository
 
 
-def home_page(iterable: Generator[str, None, None]) -> str:
+def home_page(iterable: Generator[str, None, None], parent_path: str) -> str:
     return Template("""
     <html>
     <head>
@@ -77,12 +77,15 @@ def home_page(iterable: Generator[str, None, None]) -> str:
     </tr>
     </thead>
     <tbody>
-    {% for href, name in iterable %}
-    <tr><td><a href="/{{href}}">{{name}}</a></td></tr>
+    {% if parent_path %}
+    <tr><td><a href="{{parent_path}}">../</a></td><td>-</td><td class="size">-</td></tr>
+    {% endif %}
+    {% for href, name, size, time in iterable %}
+    <tr><td><a href="/{{href}}">{{name}}</a></td><td>{{time}}</td><td class="size">{{size}}</td></tr>
     {% endfor %}
     </tbody>
     </table>
     <hr>
     </body>
     </html>
-    """).render(iterable=iterable)
+    """).render(iterable=iterable, parent_path=parent_path)
