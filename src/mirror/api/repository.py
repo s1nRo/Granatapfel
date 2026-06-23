@@ -13,12 +13,22 @@ from packaging import version
 logger = logging.getLogger(__name__)
 
 
+def format_bytes(size):
+    power = 2**10
+    n = 0
+    power_labels = {0 : '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+    while size > power:
+        size /= power
+        n += 1
+    return f"{round(size, 1)} {power_labels[n]}B"
+
+
 async def get_home_page() -> str:
     config = settings.CONFIG_PATH
     config_list = await asyncio.to_thread(config_dump, config)
-    repos = ((item["slug"], item["slug"]) for item in config_list)
+    repos = ((item["slug"], item["slug"], "-", "-") for item in config_list)
 
-    return await asyncio.to_thread(home_page, repos)
+    return await asyncio.to_thread(home_page, repos, parent_path="/")
 
 
 async def directory_page(
@@ -33,9 +43,9 @@ async def directory_page(
     )
 
     iter_obj = (
-        (item["Key"], item["Key"].split("/")[3]) for item in obj.get("Contents", [])
+        (item["Key"], item["Key"].split("/")[3], format_bytes(item["Size"]), item["LastModified"]) for item in obj.get("Contents", [])
     )
-    return await asyncio.to_thread(home_page, iter_obj)
+    return await asyncio.to_thread(home_page, iter_obj, parent_path=f"/{owner}/{repo}/")
 
 
 async def version_page(state: AppState, owner: str, repo: str) -> Template:
@@ -59,8 +69,8 @@ async def version_page(state: AppState, owner: str, repo: str) -> Template:
         key_list_unique, key=lambda x: version.parse(x.split("/")[2]), reverse=True
     )
     print(key_list_unique)
-    iter_obj = ((item, item.split("/")[2]) for item in sorted_key_list)
-    return await asyncio.to_thread(home_page, iter_obj)
+    iter_obj = ((item, item.split("/")[2], "-", "-") for item in sorted_key_list)
+    return await asyncio.to_thread(home_page, iter_obj, parent_path="/")
 
 
 async def download_page(

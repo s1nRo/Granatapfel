@@ -20,6 +20,7 @@ def request_github_release(config: Path) -> dict[str, list[list[str]]]:
     max_rel_stored_dict = {}
     for iter in config_list:
         url = iter["slug"]
+        prerel_conf = iter["prerel"]
         rule = iter.get("asset_regexp")
         version_of_files = re.compile(rule) if rule else None
         max_rel = iter["max_rel_stored"]
@@ -30,6 +31,9 @@ def request_github_release(config: Path) -> dict[str, list[list[str]]]:
         )
         release_meta = []
         for item in r.json():
+            prerel = item.get("prerelease")
+            if prerel_conf == "false" and prerel == "true":
+                continue
             for asset in item["assets"]:
                 if version_of_files is None or version_of_files.search(asset["name"]):
                     release_meta.append(
