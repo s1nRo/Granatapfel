@@ -65,6 +65,7 @@ def stream_upload_s3(info_links: dict[str, list[list[str]]], max_rel_stored_dict
                 f"This file:{final_key} has uploaded to bucket:{settings.BUCKET_NAME}."
             )
         check_key = item[0]
+        print(check_key)
         check_list = s3_repo.s3.list_objects_v2(
                 Bucket=settings.BUCKET_NAME, Prefix=check_key
             )
@@ -73,29 +74,36 @@ def stream_upload_s3(info_links: dict[str, list[list[str]]], max_rel_stored_dict
         version_list = []
         for item in key_list:
             key_str = item.split("/")
-            print("Setting up sort list")
             version_list.append(f"{key_str[0]}/{key_str[1]}/{key_str[2]}")
-        version_list = set(version_list)
+        version_list = list(set(version_list))
         print(version_list)
+
         sorted_version_list = sorted(
         version_list, key=lambda x: version.parse(x.split("/")[2])
         )
-        print(sorted_version_list)
+
         len_s3_storage = len(sorted_version_list)
-        len_max_storage = len(max_rel_stored_dict[item[0]])
+        len_max_storage = max_rel_stored_dict[check_key]
         diff_del_version = abs(len_s3_storage - len_max_storage)
-        
+        print(diff_del_version)
+
         if diff_del_version != 0:
+            print("obj has to be del!")
             for i in range(diff_del_version):
                 del_version = sorted_version_list[i]
+                print(del_version)
                 for item in key_list:
-                    if del_version == item.split("/")[1]:
-                        s3_repo.s3.delete_obj(settings.BUCKET_NAME, item)
-                        print("obj del!")      
+                    print(item)
+                    if del_version in item:
+                        print(item.split("/")[1])
+                        s3_repo.delete_obj(settings.BUCKET_NAME, item)
+                        print("obj del!")
 
+    
 if __name__ == "__main__":
     config = settings.CONFIG_PATH
     lis, ver_lis = request_github_release(config)
+    print(ver_lis)
     stream_upload_s3(lis, ver_lis)
     # print(lis)
 
