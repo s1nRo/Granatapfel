@@ -1,7 +1,10 @@
 import asyncio
 import logging
+import secrets
+from typing import Annotated
 
-from fastapi import logger
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from jinja2 import Template
 
 from mirror.api.schemas import AppState, home_page
@@ -12,11 +15,13 @@ from packaging import version
 
 logger = logging.getLogger(__name__)
 
+security = HTTPBasic()
 
-def format_bytes(size):
+
+def format_bytes(size) -> str:
     power = 2**10
     n = 0
-    power_labels = {0 : '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+    power_labels = {0: "", 1: "K", 2: "M", 3: "G", 4: "T"}
     while size > power:
         size /= power
         n += 1
@@ -43,7 +48,13 @@ async def directory_page(
     )
 
     iter_obj = (
-        (item["Key"], item["Key"].split("/")[3], format_bytes(item["Size"]), item["LastModified"]) for item in obj.get("Contents", [])
+        (
+            item["Key"],
+            item["Key"].split("/")[3],
+            format_bytes(item["Size"]),
+            item["LastModified"],
+        )
+        for item in obj.get("Contents", [])
     )
     return await asyncio.to_thread(home_page, iter_obj, parent_path=f"/{owner}/{repo}/")
 
@@ -68,7 +79,7 @@ async def version_page(state: AppState, owner: str, repo: str) -> Template:
     sorted_key_list = sorted(
         key_list_unique, key=lambda x: version.parse(x.split("/")[2]), reverse=True
     )
-    print(key_list_unique)
+    logger.debug(key_list_unique)
     iter_obj = ((item, item.split("/")[2], "-", "-") for item in sorted_key_list)
     return await asyncio.to_thread(home_page, iter_obj, parent_path="/")
 
@@ -82,3 +93,25 @@ async def download_page(
         bucket_name=settings.BUCKET_NAME,
         keys=extraction_key,
     )
+
+
+def get_current_username(
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+):
+    current_username_bytes = credentials.username.encode("utf8")
+    correct_username_bytes = settings.USERNAME_API.encode("utf8")
+    is_correct_username = secrets.compare_digest(
+        current_username_bytes, correct_username_bytes
+    )
+    current_password_bytes = credentials.password.encode("utf8")
+    correct_password_bytes = settings.PASSWORD_API.encode("utf8")
+    is_correct_password = secrets.compare_digest(
+        current_password_bytes, correct_password_bytes
+    )
+    if not (is_correct_username and is_correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username

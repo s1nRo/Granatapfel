@@ -34,7 +34,7 @@ class S3Repository:
         self.s3.upload_fileobj(data, bucket_name, keys)
         logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {keys}")
 
-    def download_file(self, bucket_name: str, keys: str) -> None:
+    def download_file(self, bucket_name: str, keys: str) -> bytes:
         buff = BytesIO()
 
         self.s3.download_fileobj(bucket_name, keys, buff)
