@@ -34,7 +34,7 @@ def request_github_release(
         release_meta = []
         for item in r.json():
             prerel = item.get("prerelease")
-            if prerel_conf == "false" and prerel == "true":
+            if not prerel_conf and prerel:
                 continue
             for asset in item["assets"]:
                 if version_of_files is None or version_of_files.search(asset["name"]):
@@ -94,7 +94,7 @@ def stream_upload_s3(
         logger.debug(f"length of s3: {len_s3_storage}")
         len_max_storage = max_rel_stored_dict[check_key]
         logger.debug(f"length by config: {len_s3_storage}")
-        diff_del_version = abs(len_s3_storage - len_max_storage)
+        diff_del_version = len_s3_storage - len_max_storage
 
         if diff_del_version != 0:
             for i in range(diff_del_version):
