@@ -6,7 +6,7 @@ from mirror.syncer.client import request_github_release, stream_upload_s3
 
 import schedule
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper()))
 logger = logging.getLogger(__name__)
 
 
