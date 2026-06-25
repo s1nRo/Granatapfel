@@ -29,7 +29,7 @@ async def get_directory_url(request: Request, owner: str, repo: str) -> HTMLResp
 
 
 @router.get("/{owner}/{repo}/{version}")
-async def get_directory_url(
+async def get_directory_url_version(
     request: Request, owner: str, repo: str, version: str
 ) -> HTMLResponse:
     state: AppState = request.app.state.app
