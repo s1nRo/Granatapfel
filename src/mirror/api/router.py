@@ -1,16 +1,24 @@
-from fastapi import APIRouter, Request, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import HTMLResponse
 
 from mirror.api.repository import (
     directory_page,
     download_page,
+    get_current_username,
     get_home_page,
     version_page,
 )
 from mirror.api.schemas import AppState
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_username)])
+
+
+@router.get("/auth")
+def read_current_user(username: Annotated[str, Depends(get_current_username)]):
+    return {"username": username}
 
 
 @router.get("/")

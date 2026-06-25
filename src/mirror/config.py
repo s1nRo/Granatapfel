@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     VERSION_S3: str = "s3v4"
     BUCKET_NAME: str = "pomoyka"
     LEVEL_DEBUG: str = "INFO"
-
+    USERNAME_API: str = "admin"
+    PASSWORD_API: str = "admin"
     model_config = SettingsConfigDict(env_file=PROJECT_ROOT / ".env", extra="ignore")
 
 

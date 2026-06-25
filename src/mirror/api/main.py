@@ -24,7 +24,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
 app = FastAPI(lifespan=lifespan)
 app.include_router(router)
 
-
 def main() -> None:
     import uvicorn
 
