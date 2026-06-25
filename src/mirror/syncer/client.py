@@ -13,14 +13,16 @@ from mirror.s3.client import s3_repo
 logger = logging.getLogger(__name__)
 
 
-def request_github_release(config: Path) -> tuple[dict[str, list[list[str]]], dict[str, str]]:
+def request_github_release(
+    config: Path,
+) -> tuple[dict[str, list[list[str]]], dict[str, str]]:
     logger.info("Parse github realese has begun!")
     config_list = config_dump(config)
     res_dict = {}
     max_rel_stored_dict = {}
     for iter in config_list:
         url = iter["slug"]
-        prerel_conf = iter["prerel"]
+        prerel_conf = iter["include_prerel"]
         rule = iter.get("asset_regexp")
         version_of_files = re.compile(rule) if rule else None
         max_rel = iter["max_rel_stored"]
@@ -70,7 +72,7 @@ def stream_upload_s3(
             logger.info(
                 f"This file:{final_key} has uploaded to bucket:{settings.BUCKET_NAME}."
             )
-        
+
         check_key = item[0]
         logger.info(f"Updating items:{check_key} in S3!")
         check_list = s3_repo.s3.list_objects_v2(

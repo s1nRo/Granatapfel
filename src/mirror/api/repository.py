@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 security = HTTPBasic()
 
+
 def format_bytes(size) -> str:
     power = 2**10
     n = 0
