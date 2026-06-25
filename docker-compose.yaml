@@ -1,0 +1,33 @@
+services:
+  s3:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=true
+
+  api:
+    build:
+      context: .
+      dockerfile: ./src/mirror/api/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    restart: unless-stopped
+    environment:
+      - S3_URL=http://s3:9000
+    depends_on:
+      - s3
+  syncer:
+    build:
+      context: .
+      dockerfile: ./src/mirror/syncer/Dockerfile
+    env_file:
+      - .env
+    environment:
+      - S3_URL=http://s3:9000
+    restart: unless-stopped
+    depends_on:
+      - s3
