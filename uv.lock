@@ -474,35 +474,55 @@ wheels = [
 name = "granatapfel"
 version = "0.0.1"
 source = { editable = "." }
-dependencies = [
+
+[package.dev-dependencies]
+api = [
     { name = "boto3" },
     { name = "boto3-stubs", extra = ["full"] },
     { name = "fastapi", extra = ["standard"] },
     { name = "jinja2" },
-    { name = "mypy" },
     { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+]
+dev = [
+    { name = "mypy" },
+    { name = "ruff" },
+]
+syncer = [
+    { name = "boto3" },
+    { name = "boto3-stubs", extra = ["full"] },
+    { name = "packaging" },
+    { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "requests" },
-    { name = "ruff" },
     { name = "schedule" },
     { name = "types-pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [
+
+[package.metadata.requires-dev]
+api = [
     { name = "boto3", specifier = ">=1.43.18" },
     { name = "boto3-stubs", extras = ["full"], specifier = ">=1.43.18" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.136.3" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "mypy", specifier = ">=2.1.0" },
     { name = "packaging", specifier = ">=26.2" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
+]
+dev = [
+    { name = "mypy", specifier = ">=2.1.0" },
+    { name = "ruff", specifier = ">=0.15.15" },
+]
+syncer = [
+    { name = "boto3", specifier = ">=1.43.18" },
+    { name = "boto3-stubs", extras = ["full"], specifier = ">=1.43.18" },
+    { name = "packaging", specifier = ">=26.2" },
+    { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "requests", specifier = ">=2.34.2" },
-    { name = "ruff", specifier = ">=0.15.15" },
     { name = "schedule", specifier = ">=1.2.2" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20260518" },
 ]
