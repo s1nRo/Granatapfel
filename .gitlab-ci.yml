@@ -1,5 +1,5 @@
 include:
-  - project: "infra/ci-templates"
+  - project: "ci/templates"
     ref: master
     file:
       - "/buildah-push.yml"
