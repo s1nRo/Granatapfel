@@ -30,4 +30,6 @@ COPY --from=builder --chown=unprivileged:unprivileged /app/src ./src
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+USER unprivileged
+
 CMD ["python", "src/mirror/syncer/main.py"]
