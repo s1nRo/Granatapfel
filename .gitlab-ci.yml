@@ -11,8 +11,6 @@ stages:
 
 variables:
   PYPI_URL: http://pypi.ioc.internal/index
-  BUILD_ARGS: |
-    PYPI_URL=$PYPI_URL
 
 compute-version:
   extends: .version-tag
@@ -28,7 +26,8 @@ build-api-image:
     CIKIT_REPO: cns/granatapfel
     CIKIT_CONTAINERFILE: src/mirror/api/Dockerfile
     CIKIT_TAGS: "$CIKIT_VERSION latest"
-    CIKIT_BUILD_ARGS: $BUILD_ARGS
+    CIKIT_BUILD_ARGS: |
+      PYPI_URL=$PYPI_URL
 
 build-syncer-image:
   extends: .buildah-push
@@ -40,4 +39,5 @@ build-syncer-image:
     CIKIT_REPO: cns/granatapfel-syncer
     CIKIT_CONTAINERFILE: src/mirror/syncer/Dockerfile
     CIKIT_TAGS: "$CIKIT_VERSION latest"
-    CIKIT_BUILD_ARGS: $BUILD_ARGS
+    CIKIT_BUILD_ARGS: |
+      PYPI_URL=$PYPI_URL
