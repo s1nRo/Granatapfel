@@ -21,9 +21,9 @@ class S3Repository:
             aws_secret_access_key=settings.TOKEN_S3,
             config=Config(signature_version=settings.VERSION_S3),
         )
-        self.check_if_existed(Bucket=settings.BUCKET_NAME)
+        self.check_if_existed(bucket_name=settings.BUCKET_NAME)
 
-    def check_if_existed(self, bucket_name: str) -> bool:
+    def check_if_existed(self, bucket_name: str) -> None:
         try:
             self.s3.head_bucket(Bucket=bucket_name)
             logger.info(f"Bucket {bucket_name} is existed.")
