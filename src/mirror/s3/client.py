@@ -2,7 +2,7 @@ from io import BytesIO
 import logging
 
 import boto3
-from botocore.client import Config
+from botocore.client import ClientError, Config
 from mypy_boto3_s3 import S3Client
 from mypy_boto3_s3.type_defs import FileobjTypeDef
 
@@ -21,7 +21,13 @@ class S3Repository:
             aws_secret_access_key=settings.TOKEN_S3,
             config=Config(signature_version=settings.VERSION_S3),
         )
-        self.s3.create_bucket(Bucket=settings.BUCKET_NAME)
+        self.s3.check_if_existed(Bucket=settings.BUCKET_NAME)
+    def check_if_existed(self, bucket_name: str) -> bool:
+        try:
+            self.s3.head_bucket(Bucket=bucket_name)
+            logger.info(f"Bucket {bucket_name} is existed.")
+        except ClientError:
+            logger.error(f"Bucket {bucket_name} isn't created.")
 
     def create_bucket(self, bucket_name: str) -> None:
         try:
