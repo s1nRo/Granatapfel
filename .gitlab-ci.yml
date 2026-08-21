@@ -2,25 +2,33 @@ include:
   - project: "ci/templates"
     ref: master
     file:
-      - "/buildah-push.yml"
+      - "/generic/buildah-push.yml"
+      - "/generic/version-tag.yml"
 
 stages:
+  - prepare
   - build
+
+compute-version:
+  extends: .version-tag
+  stage: prepare
 
 build-api-image:
   extends: .buildah-push
   stage: build
-  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   variables:
-    REPO: cns/granatapfel-api
-    CONTAINERFILE: src/mirror/api/Dockerfile
-    TAGS: "$CI_COMMIT_TAG latest"
+    CIKIT_REPO: cns/granatapfel
+    CIKIT_CONTAINERFILE: src/mirror/api/Dockerfile
+    CIKIT_TAGS: "$CIKIT_VERSION latest"
 
 build-syncer-image:
   extends: .buildah-push
   stage: build
-  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   variables:
-    REPO: cns/granatapfel-syncer
-    CONTAINERFILE: src/mirror/syncer/Dockerfile
-    TAGS: "$CI_COMMIT_TAG latest"
+    CIKIT_REPO: cns/granatapfel-syncer
+    CIKIT_CONTAINERFILE: src/mirror/syncer/Dockerfile
+    CIKIT_TAGS: "$CIKIT_VERSION latest"
