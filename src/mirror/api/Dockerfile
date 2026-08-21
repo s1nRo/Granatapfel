@@ -14,6 +14,7 @@ RUN uv venv \
  && uv export --frozen --no-emit-project --no-group dev --no-group syncer --group api -o /tmp/requirements.txt \
  && uv pip install --require-hashes -r /tmp/requirements.txt
 
+COPY README.md ./
 COPY src/ ./src
 RUN uv pip install --no-deps .
 
