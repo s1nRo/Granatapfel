@@ -20,6 +20,7 @@ compute-version:
 
 build-api-image:
   extends: .buildah-push
+  needs: [compute-version]
   stage: build
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -31,6 +32,7 @@ build-api-image:
 
 build-syncer-image:
   extends: .buildah-push
+  needs: [compute-version]
   stage: build
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
