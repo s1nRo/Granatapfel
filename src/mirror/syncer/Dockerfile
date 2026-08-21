@@ -3,17 +3,19 @@ FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
 
 ARG PYPI_URL="https://pypi.org/simple"
 
-ENV UV_INDEX_URL=${PYPI_URL} \
+ENV UV_DEFAULT_INDEX=${PYPI_URL} \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project --no-group dev --no-group api --group syncer
+RUN uv venv \
+ && uv export --frozen --no-emit-project --no-group dev --no-group api --group syncer -o /tmp/requirements.txt \
+ && uv pip install --require-hashes -r /tmp/requirements.txt
 
 COPY src/ ./src
-RUN uv sync --frozen --no-group dev --no-group api --group syncer
+RUN uv pip install --no-deps .
 
 # Runtime stage
 FROM python:3.12-alpine AS runner
