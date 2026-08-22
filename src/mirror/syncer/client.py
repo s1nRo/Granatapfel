@@ -52,13 +52,9 @@ def stream_upload_s3(
     info_links: dict[str, list[list[str]]], max_rel_stored_dict: dict[str, int]
 ) -> None:
     logger.info("Uploading in S3 has begun!")
-    for item in info_links.items():
-        for link in item[1]:
-            key = link[0]
-            url = link[1]
-            tag = link[2]
-
-            final_key = f"{item[0]}/{tag}/{key}"
+    for repo_slug, release_meta in info_links.items():
+        for asset_name, asset_url, tag in release_meta:
+            final_key = f"{repo_slug}/{tag}/{asset_name}"
 
             impodence = s3_repo.s3.list_objects_v2(
                 Bucket=settings.BUCKET_NAME, Prefix=final_key, MaxKeys=1
@@ -67,39 +63,27 @@ def stream_upload_s3(
                 logger.info("This object is in Bucket.")
                 continue
 
-            res = requests.get(url, stream=True)
+            res = requests.get(asset_url, stream=True)
             s3_repo.upload_file(res.raw, settings.BUCKET_NAME, final_key)
-            logger.info(
-                f"This file:{final_key} has uploaded to bucket:{settings.BUCKET_NAME}."
-            )
+            logger.info(f"This file:{final_key} has uploaded.")
 
-        check_key = item[0]
-        logger.info(f"Updating items:{check_key} in S3!")
+        logger.info(f"Updating items:{repo_slug} in S3!")
         check_list = s3_repo.s3.list_objects_v2(
-            Bucket=settings.BUCKET_NAME, Prefix=check_key
+            Bucket=settings.BUCKET_NAME, Prefix=repo_slug
         )
         key_list = [item["Key"] for item in check_list.get("Contents", [])]
 
-        version_list = []
-        for item in key_list:
-            key_str = item.split("/")
-            version_list.append(f"{key_str[0]}/{key_str[1]}/{key_str[2]}")
-        version_list = list(set(version_list))
+        keep_tags  = []
+        for link in release_meta:
+            if link[2] not in keep_tags:
+                keep_tags.append(link[2])
+        keep_tags = set(keep_tags[: max_rel_stored_dict[repo_slug]])
 
-        sorted_version_list = sorted(
-            version_list, key=lambda x: version.parse(x.split("/")[2])
-        )
+        if not keep_tags:
+            logger.warning(f"No releases for {repo_slug}, cleanup skipped")
+            continue
 
-        len_s3_storage = len(sorted_version_list)
-        logger.debug(f"length of s3: {len_s3_storage}")
-        len_max_storage = max_rel_stored_dict[check_key]
-        logger.debug(f"length by config: {len_s3_storage}")
-        diff_del_version = len_s3_storage - len_max_storage
-
-        if diff_del_version != 0:
-            for i in range(diff_del_version):
-                del_version = sorted_version_list[i]
-                for item in key_list:
-                    if del_version in item:
-                        s3_repo.delete_obj(settings.BUCKET_NAME, item)
-                        logger.info("Object deleted!")
+        for obj_key in key_list:
+            if obj_key.split("/")[2] not in keep_tags:
+                s3_repo.delete_obj(settings.BUCKET_NAME, obj_key)
+                logger.info(f"Object deleted: {obj_key}")
