@@ -6,6 +6,9 @@ readme = "README.md"
 license = "Apache-2.0"
 
 requires-python = ">=3.11.9"
+dependencies = [
+    "pydantic>=2.13.4",
+]
 
 [dependency-groups]
 api = [
@@ -13,7 +16,6 @@ api = [
     "boto3-stubs[full]>=1.43.18",
     "fastapi[standard]>=0.136.3",
     "jinja2>=3.1.6",
-    "packaging>=26.2",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
 ]
@@ -21,7 +23,6 @@ api = [
 syncer = [
     "boto3>=1.43.18",
     "boto3-stubs[full]>=1.43.18",
-    "packaging>=26.2",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
     "schedule>=1.2.2",

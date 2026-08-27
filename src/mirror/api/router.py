@@ -11,7 +11,8 @@ from mirror.api.repository import (
     version_page,
 )
 from mirror.api.schemas import AppState
-
+from fastapi.responses import StreamingResponse
+from starlette.concurrency import iterate_in_threadpool
 
 router = APIRouter(dependencies=[Depends(get_current_username)])
 
@@ -53,8 +54,11 @@ async def get_directory_download(
     state: AppState = request.app.state.app
     res = await download_page(state, owner, repo, version, key)
 
-    return Response(
-        content=res,
+    return StreamingResponse(
+        iterate_in_threadpool(res["Body"].iter_chunks(1024 * 1024)),
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={key}"},
+        headers={
+            "Content-Disposition": f'attachment; filename="{key}"',
+            "Content-Length": str(res["ContentLength"]),
+        },
     )

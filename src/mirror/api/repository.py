@@ -11,7 +11,6 @@ from mirror.api.schemas import AppState, home_page
 from mirror.config import settings
 from mirror.syncer.config_dump import config_dump
 
-from packaging import version
 
 logger = logging.getLogger(__name__)
 
@@ -69,24 +68,30 @@ async def version_page(state: AppState, owner: str, repo: str) -> Template:
     )
     key_list = [item["Key"] for item in obj.get("Contents", [])]
 
-    key_list_unique = []
+    keys_unique = {}
+
     for item in key_list:
         key_str = item.split("/")
-        key_list_unique.append(f"{key_str[0]}/{key_str[1]}/{key_str[2]}")
 
-    key_list_unique = set(key_list_unique)
+        head = await asyncio.to_thread(
+                state.s3_client.s3.head_object,
+                Bucket=settings.BUCKET_NAME, Key=item,
+        )
+        time = head["Metadata"].get("published-at")
 
-    sorted_key_list = sorted(
-        key_list_unique, key=lambda x: version.parse(x.split("/")[2]), reverse=True
+        keys_unique[f"{key_str[0]}/{key_str[1]}/{key_str[2]}"] = time
+
+    sorted_keys = sorted(
+        keys_unique, key=lambda x: keys_unique[x]
     )
-    logger.debug(key_list_unique)
-    iter_obj = ((item, item.split("/")[2], "-", "-") for item in sorted_key_list)
+    logger.debug(keys_unique)
+    iter_obj = ((item, item.split("/")[2], "-", "-") for item in sorted_keys)
     return await asyncio.to_thread(home_page, iter_obj, parent_path="/")
 
 
 async def download_page(
     state: AppState, owner: str, repo: str, version: str, key: str
-) -> None:
+) -> GetObjectOutputTypeDef:
     extraction_key = f"{owner}/{repo}/{version}/{key}"
     return await asyncio.to_thread(
         state.s3_client.download_file,

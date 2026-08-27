@@ -27,8 +27,10 @@ WORKDIR /app
 
 COPY --from=builder --chown=unprivileged:unprivileged /app/.venv /app/.venv
 COPY --from=builder --chown=unprivileged:unprivileged /app/src ./src
+COPY --chown=unprivileged:unprivileged config.yaml ./config.yaml
 
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    CONFIG_PATH=/app/config.yaml
 
 USER unprivileged
 

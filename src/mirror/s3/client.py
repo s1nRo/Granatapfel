@@ -30,18 +30,20 @@ class S3Repository:
         except ClientError:
             logger.error(f"Bucket {bucket_name} isn't created.")
 
-    def upload_file(self, data: FileobjTypeDef, bucket_name: str, keys: str) -> None:
-        self.s3.upload_fileobj(data, bucket_name, keys)
+    def upload_file(self, data: FileobjTypeDef, bucket_name: str, keys: str, published_at: str | None = None) -> None:
+        extra = {'Metadata': {'published-at': published_at}} if published_at else None
+
+        self.s3.upload_fileobj(
+            data, bucket_name, keys,
+            ExtraArgs=extra            
+        )
         logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {keys}")
 
     def download_file(self, bucket_name: str, keys: str) -> bytes:
-        buff = BytesIO()
-
-        self.s3.download_fileobj(bucket_name, keys, buff)
-        buff.seek(0)
+        response = self.s3.get_object(Bucket=bucket_name, Key=keys)
 
         logger.info(f"File downloaded. File_name: {keys}")
-        return buff.read()
+        return response
 
     def list_obj(self, bucket_name: str) -> list[tuple[str, int]]:
         response = self.s3.list_objects_v2(Bucket=bucket_name)
