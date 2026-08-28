@@ -1,10 +1,9 @@
-from io import BytesIO
 import logging
 
 import boto3
 from botocore.client import ClientError, Config
 from mypy_boto3_s3 import S3Client
-from mypy_boto3_s3.type_defs import FileobjTypeDef
+from mypy_boto3_s3.type_defs import FileobjTypeDef, GetObjectOutputTypeDef
 
 from mirror.config import settings
 
@@ -26,40 +25,48 @@ class S3Repository:
     def check_if_existed(self, bucket_name: str) -> None:
         try:
             self.s3.head_bucket(Bucket=bucket_name)
-            logger.info(f"Bucket {bucket_name} is existed.")
         except ClientError:
-            logger.error(f"Bucket {bucket_name} isn't created.")
+            logger.error("Bucket isn't created", bucket_name)
 
-    def upload_file(self, data: FileobjTypeDef, bucket_name: str, keys: str, published_at: str | None = None) -> None:
-        extra = {'Metadata': {'published-at': published_at}} if published_at else None
+        logger.info("Bucket %s exists", bucket_name)
 
-        self.s3.upload_fileobj(
-            data, bucket_name, keys,
-            ExtraArgs=extra            
-        )
-        logger.info(f"File uploaded. Bucket: {bucket_name}, file_name: {keys}")
+    def upload_file(
+        self,
+        data: FileobjTypeDef,
+        bucket_name: str,
+        keys: str,
+        published_at: str | None = None,
+    ) -> None:
+        extra = {"Metadata": {"published-at": published_at}} if published_at else None
+        try:
+            self.s3.upload_fileobj(data, bucket_name, keys, ExtraArgs=extra)
+        except ClientError as e:
+            logger.error("Uploaded failed %s", e)
 
-    def download_file(self, bucket_name: str, keys: str) -> bytes:
-        response = self.s3.get_object(Bucket=bucket_name, Key=keys)
+        logger.info("File %s uploaded in bucket: %s", keys, bucket_name)
 
-        logger.info(f"File downloaded. File_name: {keys}")
+    def download_file(
+        self, bucket_name: str, key: str
+    ) -> GetObjectOutputTypeDef | None:
+        try:
+            response = self.s3.get_object(Bucket=bucket_name, Key=key)
+        except self.s3.exceptions.NoSuchKey as e:
+            logger.error("File %s not found, %s", key, e)
+            return None
+        except ClientError as e:
+            logger.error("Failed download %s", e)
+            raise
+
+        logger.info("File %s downloaded", key)
         return response
 
-    def list_obj(self, bucket_name: str) -> list[tuple[str, int]]:
-        response = self.s3.list_objects_v2(Bucket=bucket_name)
-        list_obj = []
-        for obj in response.get("Contents", []):
-            list_obj.append((obj["Key"], obj["Size"]))
-            logger.info(f"- {obj['Key']} ({obj['Size']} bytes)")
-        return list_obj
-
     def delete_obj(self, bucket_name: str, name_obj_s3: str) -> None:
-        self.s3.delete_object(Bucket=bucket_name, Key=name_obj_s3)
-        logger.info("Object deleted.")
+        try:
+            self.s3.delete_object(Bucket=bucket_name, Key=name_obj_s3)
+        except ClientError as e:
+            logger.error("Failed delete object %s, %s", name_obj_s3, e)
 
-    def delete_bucket(self, bucket_name: str) -> None:
-        self.s3.delete_bucket(Bucket=bucket_name)
-        logger.info("Bucket deleted.")
+        logger.info("Object %s deleted in bucket %s", name_obj_s3, bucket_name)
 
 
 s3_repo = S3Repository()

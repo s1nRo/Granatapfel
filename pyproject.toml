@@ -37,6 +37,7 @@ dev = [
 
 [tool.uv]
 package = true
+default-groups = ["dev", "api", "syncer"]
 
 [build-system]
 requires = ["hatchling"]
@@ -45,8 +46,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/mirror"]
 
-[mypy]
-python_version = "3.11.9"
-
 [tool.mypy]
 strict = true
+python_version = "3.12"

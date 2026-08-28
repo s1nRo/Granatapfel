@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from mirror.api.repository import (
@@ -18,7 +18,9 @@ router = APIRouter(dependencies=[Depends(get_current_username)])
 
 
 @router.get("/auth")
-def read_current_user(username: Annotated[str, Depends(get_current_username)]):
+def read_current_user(
+    username: Annotated[str, Depends(get_current_username)],
+) -> dict[str, Annotated[str, Depends(get_current_username)]]:
     return {"username": username}
 
 
@@ -50,9 +52,12 @@ async def get_directory_url_version(
 @router.get("/{owner}/{repo}/{version}/{key}")
 async def get_directory_download(
     request: Request, owner: str, repo: str, version: str, key: str
-) -> None:
+) -> StreamingResponse:
     state: AppState = request.app.state.app
     res = await download_page(state, owner, repo, version, key)
+
+    if res is None:
+        raise HTTPException(status_code=404, detail="File not found")
 
     return StreamingResponse(
         iterate_in_threadpool(res["Body"].iter_chunks(1024 * 1024)),
