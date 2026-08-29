@@ -2,6 +2,7 @@ import logging
 import time
 
 from mirror.config import settings
+from mirror.s3.client import S3Repository
 from mirror.syncer.client import parse_github_release, stream_upload_s3
 
 import schedule
@@ -15,9 +16,10 @@ def uplaoder_s3() -> None:
         logger.info("Syncer has started!")
         config = settings.CONFIG_PATH
         links, ref_links = parse_github_release(config)
-        stream_upload_s3(links, ref_links)
-    except Exception as e:
-        logger.exception("Sync run failed %s", e)
+        s3_repo = S3Repository()
+        stream_upload_s3(s3_repo, links, ref_links)
+    except Exception:
+        logger.exception("Sync run failed %s")
 
 
 schedule.every().day.at("12:00").do(uplaoder_s3)

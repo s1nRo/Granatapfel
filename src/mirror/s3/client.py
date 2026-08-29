@@ -78,5 +78,4 @@ class S3Repository:
             for item in page.get("Contents", []):
                 keys.append(item)
         return keys
-        
-s3_repo = S3Repository()
+

@@ -7,8 +7,8 @@ from requests.exceptions import HTTPError, RequestException
 
 from mirror.aliases import NumberReleaseStored, RealeseDataStructure
 from mirror.config import settings
+from mirror.s3.client import S3Repository
 from mirror.syncer.config_dump import ReleaseAsset, config_dump
-from mirror.s3.client import s3_repo
 
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def parse_github_release(
     return full_meta_releases, num_release_store
 
 
-def stream_upload_s3(
+def stream_upload_s3(s3_repo: S3Repository,
     meta: RealeseDataStructure, num_release_store: NumberReleaseStored
 ) -> None:
     logger.info("Uploading in %s", settings.BUCKET_NAME)

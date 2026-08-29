@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from mirror.api.router import router
 from mirror.api.schemas import AppState
 from mirror.config import settings
-from mirror.s3.client import s3_repo
+from mirror.s3.client import S3Repository
 
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper()))
     logger.info("Application startup complete.")
-    app.state.app = AppState(s3_client=s3_repo)
+    app.state.app = AppState(s3_client=S3Repository())
     yield
     logger.info("Application shutdown complete.")
 
