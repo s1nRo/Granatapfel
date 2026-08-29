@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 
 import requests
-from requests.exceptions import RequestException
+from requests.exceptions import HTTPError, RequestException
 
 from mirror.aliases import NumberReleaseStored, RealeseDataStructure
 from mirror.config import settings
@@ -20,6 +20,7 @@ def _request_to_github(url: str, parse_number: int) -> requests.Response:
             f"https://api.github.com/repos/{url}/releases",
             headers={"Authorization": f"Bearer {settings.GITHUB_TOKEN}"},
             params={"per_page": parse_number},
+            timeout=(5, 30),
         )
         if request.status_code == 200:
             return request
@@ -71,7 +72,7 @@ def parse_github_release(
 def stream_upload_s3(
     meta: RealeseDataStructure, num_release_store: NumberReleaseStored
 ) -> None:
-    logger.info(f"Uploading in {settings.BUCKET_NAME}")
+    logger.info("Uploading in %s", settings.BUCKET_NAME)
     for repo_slug, release_meta in meta.items():
         for asset in release_meta:
             final_key = f"{repo_slug}/{asset.tag}/{asset.file_name}"
@@ -82,18 +83,34 @@ def stream_upload_s3(
             if impodence["KeyCount"] > 0:
                 logger.info("Skip %s, already in bucket", final_key)
                 continue
-
-            res = requests.get(asset.download_url, stream=True)
+            try:
+                res = requests.get(asset.download_url, timeout=(5, 60), stream=True)
+                res.raise_for_status()
+                res.raw.decode_content = True
+            except RequestException as e:
+                logger.error("A request error occurred %s:", e)
+                continue
+        
             s3_repo.upload_file(
                 res.raw, settings.BUCKET_NAME, final_key, asset.published_at
             )
             logger.info("File: %s uploaded", final_key)
 
-        check_list = s3_repo.s3.list_objects_v2(
-            Bucket=settings.BUCKET_NAME, Prefix=repo_slug
+        check_list = s3_repo.list_keys(
+            bucket=settings.BUCKET_NAME, prefix=repo_slug
         )
-        key_list = [item.get("Key", "") for item in check_list.get("Contents", [])]
-
+        
+        key_list: list[tuple[str, str]] = []
+        for item in check_list:
+            key = item.get("Key", "")
+            parts = key.split("/")
+            if len(parts) != 4:
+                logger.warning("Unexpected key layout, skipping: %s", key)
+                continue
+                
+            _, _, tag, _ = parts
+            key_list.append((key, tag))
+            
         keep_tags: list[str] = []
 
         for link in release_meta:
@@ -105,7 +122,7 @@ def stream_upload_s3(
             logger.warning("No releases for %s, cleanup skipped", repo_slug)
             continue
 
-        for obj_key in key_list:
-            if obj_key.split("/")[2] not in unique_tags:
+        for obj_key, tag in key_list:
+            if tag not in unique_tags:
                 s3_repo.delete_obj(settings.BUCKET_NAME, obj_key)
                 logger.info("Object deleted: %s", obj_key)

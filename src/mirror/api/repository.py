@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from mypy_boto3_s3.type_defs import GetObjectOutputTypeDef
 
+from mirror.aliases import Row
 from mirror.api.schemas import AppState, home_page
 from mirror.config import settings
 from mirror.syncer.config_dump import config_dump
@@ -22,7 +23,7 @@ def format_bytes(size: int) -> str:
     n = 0
     size_casted: float = float(size)
     power_labels = {0: "", 1: "K", 2: "M", 3: "G", 4: "T"}
-    while size_casted > power:
+    while size_casted >= power:
         size_casted /= power
         n += 1
     return f"{round(size_casted, 1)} {power_labels[n]}B"
@@ -40,32 +41,41 @@ async def directory_page(state: AppState, owner: str, repo: str, version: str) -
 
     extraction_key = f"{owner}/{repo}/{version}"
     obj = await asyncio.to_thread(
-        state.s3_client.s3.list_objects_v2,
-        Bucket=settings.BUCKET_NAME,
-        Prefix=extraction_key,
+        state.s3_client.list_keys,
+        bucket=settings.BUCKET_NAME,
+        prefix=extraction_key,
     )
 
-    iter_obj = (
-        (
-            item.get("Key", ""),
-            item.get("Key", "").split("/")[3],
+    rows: list[Row] = []
+    for item in obj:
+        key = item.get("Key", "")
+        parts = key.split("/")
+        
+        if len(parts) != 4:
+            logger.warning("Unexpected key layout, skipping: %s", key)
+            continue
+
+        _, _, _, file_name = parts
+        
+        rows.append((
+            key,
+            file_name,
             format_bytes(item.get("Size", 0)),
             item.get("LastModified", ""),
-        )
-        for item in obj.get("Contents", [])
-    )
-    return await asyncio.to_thread(home_page, iter_obj, parent_path=f"/{owner}/{repo}/")
+        ))
+        
+    return await asyncio.to_thread(home_page, rows, parent_path=f"/{owner}/{repo}/")
 
 
 async def version_page(state: AppState, owner: str, repo: str) -> str:
 
     extraction_key = f"{owner}/{repo}"
     obj = await asyncio.to_thread(
-        state.s3_client.s3.list_objects_v2,
-        Bucket=settings.BUCKET_NAME,
-        Prefix=extraction_key,
+        state.s3_client.list_keys,
+        bucket=settings.BUCKET_NAME,
+        prefix=extraction_key,
     )
-    key_list = [item.get("Key", "") for item in obj.get("Contents", [])]
+    key_list = [item.get("Key", "") for item in obj]
 
     keys_unique: dict[str, str] = {}
 

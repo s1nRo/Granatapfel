@@ -3,7 +3,7 @@ import logging
 import boto3
 from botocore.client import ClientError, Config
 from mypy_boto3_s3 import S3Client
-from mypy_boto3_s3.type_defs import FileobjTypeDef, GetObjectOutputTypeDef
+from mypy_boto3_s3.type_defs import FileobjTypeDef, GetObjectOutputTypeDef, ObjectTypeDef
 
 from mirror.config import settings
 
@@ -71,5 +71,12 @@ class S3Repository:
             
         logger.info("Object %s deleted in bucket %s", name_obj_s3, bucket_name)
 
-
+    def list_keys(self, bucket: str, prefix: str) -> list[ObjectTypeDef]:
+        keys: list[ObjectTypeDef] = []
+        paginator = self.s3.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for item in page.get("Contents", []):
+                keys.append(item)
+        return keys
+        
 s3_repo = S3Repository()

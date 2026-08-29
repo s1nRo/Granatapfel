@@ -11,10 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 def uplaoder_s3() -> None:
-    logger.info("Syncer has started!")
-    config = settings.CONFIG_PATH
-    links, ref_links = parse_github_release(config)
-    stream_upload_s3(links, ref_links)
+    try:
+        logger.info("Syncer has started!")
+        config = settings.CONFIG_PATH
+        links, ref_links = parse_github_release(config)
+        stream_upload_s3(links, ref_links)
+    except Exception as e:
+        logger.exception("Sync run failed %s", e)
 
 
 schedule.every().day.at("12:00").do(uplaoder_s3)
