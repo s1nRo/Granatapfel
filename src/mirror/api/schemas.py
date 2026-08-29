@@ -89,4 +89,4 @@ def home_page(iterable: Iterable[Row], parent_path: str) -> str:
     <hr>
     </body>
     </html>
-    """).render(iterable=iterable, parent_path=parent_path)
+    """, autoescape=True).render(iterable=iterable, parent_path=parent_path)
