@@ -26,8 +26,9 @@ class S3Repository:
         try:
             self.s3.head_bucket(Bucket=bucket_name)
         except ClientError:
-            logger.error("Bucket isn't created", bucket_name)
-
+            logger.error("Bucket %s isn't created", bucket_name)
+            raise
+            
         logger.info("Bucket %s exists", bucket_name)
 
     def upload_file(
@@ -40,8 +41,9 @@ class S3Repository:
         extra = {"Metadata": {"published-at": published_at}} if published_at else None
         try:
             self.s3.upload_fileobj(data, bucket_name, keys, ExtraArgs=extra)
-        except ClientError as e:
-            logger.error("Uploaded failed %s", e)
+        except ClientError:
+            logger.error("Upload object %s failed in bucket %s",  keys, bucket_name)
+            raise
 
         logger.info("File %s uploaded in bucket: %s", keys, bucket_name)
 
@@ -63,9 +65,10 @@ class S3Repository:
     def delete_obj(self, bucket_name: str, name_obj_s3: str) -> None:
         try:
             self.s3.delete_object(Bucket=bucket_name, Key=name_obj_s3)
-        except ClientError as e:
-            logger.error("Failed delete object %s, %s", name_obj_s3, e)
-
+        except ClientError:
+            logger.error("Failed delete object %s in bucket %s", name_obj_s3)
+            raise
+            
         logger.info("Object %s deleted in bucket %s", name_obj_s3, bucket_name)
 
 
