@@ -17,13 +17,6 @@ from starlette.concurrency import iterate_in_threadpool
 router = APIRouter(dependencies=[Depends(get_current_username)])
 
 
-@router.get("/auth")
-def read_current_user(
-    username: Annotated[str, Depends(get_current_username)],
-) -> dict[str, Annotated[str, Depends(get_current_username)]]:
-    return {"username": username}
-
-
 @router.get("/")
 async def get_directory_home() -> HTMLResponse:
     html = await get_home_page()
