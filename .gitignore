@@ -220,3 +220,4 @@ __marimo__/
 #IDE
 .vscode
 data
+.DS_Store
