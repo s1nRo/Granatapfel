@@ -1,6 +1,14 @@
 from pathlib import Path
+from pydantic import BaseModel
 
 import yaml
+
+
+class ReleaseAsset(BaseModel):
+    file_name: str
+    download_url: str
+    tag: str
+    published_at: str
 
 
 def config_dump(config_path: Path) -> list[dict[str, str]]:

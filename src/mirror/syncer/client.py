@@ -2,104 +2,127 @@ import logging
 from pathlib import Path
 import re
 
-from packaging import version
 import requests
+from requests.exceptions import HTTPError, RequestException
 
+from mirror.aliases import NumberReleaseStored, RealeseDataStructure
 from mirror.config import settings
-from mirror.syncer.config_dump import config_dump
-from mirror.s3.client import s3_repo
+from mirror.s3.client import S3Repository
+from mirror.syncer.config_dump import ReleaseAsset, config_dump
 
 
 logger = logging.getLogger(__name__)
 
 
-def request_github_release(
-    config: Path,
-) -> tuple[dict[str, list[list[str]]], dict[str, str]]:
-    logger.info("Parse github realese has begun!")
-    config_list = config_dump(config)
-    res_dict = {}
-    max_rel_stored_dict = {}
-    for iter in config_list:
-        url = iter["slug"]
-        prerel_conf = iter["include_prerel"]
-        rule = iter.get("asset_regexp")
-        version_of_files = re.compile(rule) if rule else None
-        max_rel = iter["max_rel_stored"]
-        r = requests.get(
+def _request_to_github(url: str, parse_number: int) -> requests.Response:
+    for _ in range(settings.ATTEMPTS):
+        request = requests.get(
             f"https://api.github.com/repos/{url}/releases",
             headers={"Authorization": f"Bearer {settings.GITHUB_TOKEN}"},
-            params={"per_page": max_rel},
+            params={"per_page": parse_number},
+            timeout=(5, 30),
         )
-        release_meta = []
-        for item in r.json():
-            prerel = item.get("prerelease")
-            if prerel_conf == "false" and prerel == "true":
+        if request.status_code == 200:
+            return request
+    raise RequestException
+
+
+def parse_github_release(
+    config: Path,
+) -> tuple[RealeseDataStructure, NumberReleaseStored]:
+    config_list = config_dump(config)
+    full_meta_releases: RealeseDataStructure = {}
+    num_release_store: NumberReleaseStored = {}
+
+    for iter in config_list:
+        url = iter["slug"]
+        is_prerelease = iter["include_prerel"]
+        ruleset = iter.get("asset_regexp")
+        versions = re.compile(ruleset) if ruleset else None
+        max_num_release = int(iter["max_rel_stored"])
+
+        try:
+            request = _request_to_github(url, max_num_release)
+        except RequestException as e:
+            logger.error("Failed to request github, %s", e)
+            continue
+
+        release_meta: list[ReleaseAsset] = []
+
+        for item in request.json():
+            prerelease = item.get("prerelease")
+            if not is_prerelease and prerelease:
                 continue
             for asset in item["assets"]:
-                if version_of_files is None or version_of_files.search(asset["name"]):
-                    release_meta.append(
-                        [asset["name"], asset["browser_download_url"], item["tag_name"]]
+                if versions is None or versions.search(asset["name"]):
+                    meta = ReleaseAsset(
+                        file_name=asset["name"],
+                        download_url=asset["browser_download_url"],
+                        tag=item["tag_name"],
+                        published_at=item["published_at"],
                     )
-        res_dict[url] = release_meta
-        max_rel_stored_dict[url] = max_rel
-        logger.info("Parse github realese has stopped!")
-        logger.debug(f"items: {res_dict}, length: {max_rel_stored_dict}")
-    return res_dict, max_rel_stored_dict
+                    release_meta.append(meta)
+
+        full_meta_releases[url] = release_meta
+        num_release_store[url] = max_num_release
+        logger.debug("items: %s, length: %s", full_meta_releases, num_release_store)
+    return full_meta_releases, num_release_store
 
 
-def stream_upload_s3(
-    info_links: dict[str, list[list[str]]], max_rel_stored_dict: dict[str, int]
+def stream_upload_s3(s3_repo: S3Repository,
+    meta: RealeseDataStructure, num_release_store: NumberReleaseStored
 ) -> None:
-    logger.info("Uploading in S3 has begun!")
-    for item in info_links.items():
-        for link in item[1]:
-            key = link[0]
-            url = link[1]
-            tag = link[2]
-
-            final_key = f"{item[0]}/{tag}/{key}"
+    logger.info("Uploading in %s", settings.BUCKET_NAME)
+    for repo_slug, release_meta in meta.items():
+        for asset in release_meta:
+            final_key = f"{repo_slug}/{asset.tag}/{asset.file_name}"
 
             impodence = s3_repo.s3.list_objects_v2(
                 Bucket=settings.BUCKET_NAME, Prefix=final_key, MaxKeys=1
             )
             if impodence["KeyCount"] > 0:
-                logger.info("This object is in Bucket.")
+                logger.info("Skip %s, already in bucket", final_key)
                 continue
-
-            res = requests.get(url, stream=True)
-            s3_repo.upload_file(res.raw, settings.BUCKET_NAME, final_key)
-            logger.info(
-                f"This file:{final_key} has uploaded to bucket:{settings.BUCKET_NAME}."
+            try:
+                res = requests.get(asset.download_url, timeout=(5, 60), stream=True)
+                res.raise_for_status()
+                res.raw.decode_content = True
+            except RequestException as e:
+                logger.error("A request error occurred %s:", e)
+                continue
+        
+            s3_repo.upload_file(
+                res.raw, settings.BUCKET_NAME, final_key, asset.published_at
             )
+            logger.info("File: %s uploaded", final_key)
 
-        check_key = item[0]
-        logger.info(f"Updating items:{check_key} in S3!")
-        check_list = s3_repo.s3.list_objects_v2(
-            Bucket=settings.BUCKET_NAME, Prefix=check_key
+        check_list = s3_repo.list_keys(
+            bucket=settings.BUCKET_NAME, prefix=repo_slug
         )
-        key_list = [item["Key"] for item in check_list.get("Contents", [])]
+        
+        key_list: list[tuple[str, str]] = []
+        for item in check_list:
+            key = item.get("Key", "")
+            parts = key.split("/")
+            if len(parts) != 4:
+                logger.warning("Unexpected key layout, skipping: %s", key)
+                continue
+                
+            _, _, tag, _ = parts
+            key_list.append((key, tag))
+            
+        keep_tags: list[str] = []
 
-        version_list = []
-        for item in key_list:
-            key_str = item.split("/")
-            version_list.append(f"{key_str[0]}/{key_str[1]}/{key_str[2]}")
-        version_list = list(set(version_list))
+        for link in release_meta:
+            if link.tag not in keep_tags:
+                keep_tags.append(link.tag)
+        unique_tags: set[str] = set(keep_tags[: num_release_store[repo_slug]])
 
-        sorted_version_list = sorted(
-            version_list, key=lambda x: version.parse(x.split("/")[2])
-        )
+        if not unique_tags:
+            logger.warning("No releases for %s, cleanup skipped", repo_slug)
+            continue
 
-        len_s3_storage = len(sorted_version_list)
-        logger.debug(f"length of s3: {len_s3_storage}")
-        len_max_storage = max_rel_stored_dict[check_key]
-        logger.debug(f"length by config: {len_s3_storage}")
-        diff_del_version = abs(len_s3_storage - len_max_storage)
-
-        if diff_del_version != 0:
-            for i in range(diff_del_version):
-                del_version = sorted_version_list[i]
-                for item in key_list:
-                    if del_version in item:
-                        s3_repo.delete_obj(settings.BUCKET_NAME, item)
-                        logger.info("Object deleted!")
+        for obj_key, tag in key_list:
+            if tag not in unique_tags:
+                s3_repo.delete_obj(settings.BUCKET_NAME, obj_key)
+                logger.info("Object deleted: %s", obj_key)

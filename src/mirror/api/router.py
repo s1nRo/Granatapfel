@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from mirror.api.repository import (
@@ -11,14 +11,10 @@ from mirror.api.repository import (
     version_page,
 )
 from mirror.api.schemas import AppState
-
+from fastapi.responses import StreamingResponse
+from starlette.concurrency import iterate_in_threadpool
 
 router = APIRouter(dependencies=[Depends(get_current_username)])
-
-
-@router.get("/auth")
-def read_current_user(username: Annotated[str, Depends(get_current_username)]):
-    return {"username": username}
 
 
 @router.get("/")
@@ -49,12 +45,18 @@ async def get_directory_url_version(
 @router.get("/{owner}/{repo}/{version}/{key}")
 async def get_directory_download(
     request: Request, owner: str, repo: str, version: str, key: str
-) -> None:
+) -> StreamingResponse:
     state: AppState = request.app.state.app
     res = await download_page(state, owner, repo, version, key)
 
-    return Response(
-        content=res,
+    if res is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return StreamingResponse(
+        iterate_in_threadpool(res["Body"].iter_chunks(1024 * 1024)),
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={key}"},
+        headers={
+            "Content-Disposition": f'attachment; filename="{key}"',
+            "Content-Length": str(res["ContentLength"]),
+        },
     )

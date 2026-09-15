@@ -1,7 +1,8 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Generator
 
 from jinja2 import Template
+from mirror.aliases import Row
 from mirror.s3.client import S3Repository
 
 
@@ -10,7 +11,7 @@ class AppState:
     s3_client: S3Repository
 
 
-def home_page(iterable: Generator[str, None, None], parent_path: str) -> str:
+def home_page(iterable: Iterable[Row], parent_path: str) -> str:
     return Template("""
     <html>
     <head>
@@ -88,4 +89,4 @@ def home_page(iterable: Generator[str, None, None], parent_path: str) -> str:
     <hr>
     </body>
     </html>
-    """).render(iterable=iterable, parent_path=parent_path)
+    """, autoescape=True).render(iterable=iterable, parent_path=parent_path)

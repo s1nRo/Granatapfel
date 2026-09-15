@@ -1,0 +1,43 @@
+include:
+  - project: "ci/templates"
+    ref: master
+    file:
+      - "/generic/buildah-push.yml"
+      - "/generic/version-tag.yml"
+
+stages:
+  - prepare
+  - build
+
+variables:
+  PYPI_URL: http://pypi.ioc.internal/index
+
+compute-version:
+  extends: .version-tag
+  stage: prepare
+
+build-api-image:
+  extends: .buildah-push
+  needs: [compute-version]
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  variables:
+    CIKIT_REPO: cns/granatapfel
+    CIKIT_CONTAINERFILE: src/mirror/api/Dockerfile
+    CIKIT_TAGS: "$CIKIT_VERSION latest"
+    CIKIT_BUILD_ARGS: |
+      PYPI_URL=$PYPI_URL
+
+build-syncer-image:
+  extends: .buildah-push
+  needs: [compute-version]
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  variables:
+    CIKIT_REPO: cns/granatapfel-syncer
+    CIKIT_CONTAINERFILE: src/mirror/syncer/Dockerfile
+    CIKIT_TAGS: "$CIKIT_VERSION latest"
+    CIKIT_BUILD_ARGS: |
+      PYPI_URL=$PYPI_URL

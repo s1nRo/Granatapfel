@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/data
+    ports:
+      - 9001:9001
     environment:
       - RUSTFS_CONSOLE_ENABLE=true
 
